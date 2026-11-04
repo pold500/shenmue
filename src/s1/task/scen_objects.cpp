@@ -1,4 +1,5 @@
 #include "s1/task/scen_state.hpp"
+#include "s1/enhancements/qte_select.hpp"
 
 namespace shenmue::s1::scen_detail {
 
@@ -754,6 +755,9 @@ bool SCEN_LoadCurrentMapScript(ScenarioWindow *window) {
         return false;
     }
     Startup_EventBase(window, reinterpret_cast<ScenarioHeader *>(file));
+#if SHENMUE_ENHANCEMENT_S1_QTE_SELECT && SHENMUE_IS_S1 && SHENMUE_IS_PC && defined(_WIN32)
+    enhancements::QteSelect_OnMapScriptLoaded();
+#endif
     return true;
 }
 

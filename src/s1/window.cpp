@@ -1,4 +1,5 @@
 #include "s1/window.hpp"
+#include "s1/enhancements/qte_select.hpp"
 
 #include "s1/d3t/settings.hpp"
 #include "s1/d3t/renderer.hpp"
@@ -348,6 +349,10 @@ void HandleWindowMessages(HWND window, unsigned int message, std::uint64_t wPara
 }
 
 LRESULT CALLBACK MessageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+#if SHENMUE_ENHANCEMENT_S1_QTE_SELECT && SHENMUE_IS_S1 && SHENMUE_IS_PC
+    if (enhancements::QteSelect_HandleWindowMessage(window, message, wParam, lParam))
+        return 1;
+#endif
     HandleWindowMessages(window, message, wParam, lParam);
     NuklearHandleWindowMessages(window, message, wParam, lParam);
 

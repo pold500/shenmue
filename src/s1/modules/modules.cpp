@@ -1,5 +1,6 @@
 #include "logging.hpp"
 #include "s1/boot.hpp"
+#include "s1/enhancements/qte_select.hpp"
 #include "s1/launch_options.hpp"
 #include "s1/save_format.hpp"
 #include "s1/task/ctrl.hpp"
@@ -59,6 +60,9 @@ std::int64_t Audio_Module(HLib::TaskData *taskData) {
         shenSetupPlayerDefaultsNewGame();
         g_isOnMainMenu = 0;
         HLTaskFunc_InternalWeatherInit(1);
+#if SHENMUE_ENHANCEMENT_S1_QTE_SELECT && SHENMUE_IS_S1 && SHENMUE_IS_PC && defined(_WIN32)
+        enhancements::QteSelect_ApplyPendingPreset();
+#endif
 
         g_sceneId = requestedScene;
         g_areaId = requestedArea;

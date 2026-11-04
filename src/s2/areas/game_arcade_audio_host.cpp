@@ -25,6 +25,7 @@
 #include <mmdeviceapi.h>
 #include <initguid.h>
 #include <functiondiscoverykeys_devpkey.h>
+#include "platform/default_audio_endpoint.hpp"
 #endif
 
 namespace shenmue::s1 {
@@ -640,27 +641,30 @@ bool GetAudioDeviceDetails() {
         return false;
     IMMDeviceCollection *devices = nullptr;
     result = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &devices);
-    enumerator->Release();
-    if (FAILED(result))
+    if (FAILED(result)) {
+        enumerator->Release();
         return false;
+    }
     UINT count = 0;
     devices->GetCount(&count);
     if (count > 12)
         count = 12;
-    for (UINT index = 0; index < count; ++index) {
+    const UINT defaultIndex = ::shenmue::platform::DefaultRenderEndpointIndex(enumerator, devices, count);
+    enumerator->Release();
+    for (UINT slot = 0; slot < count; ++slot) {
         IMMDevice *device = nullptr;
-        if (FAILED(devices->Item(index, &device)))
+        if (FAILED(devices->Item(::shenmue::platform::EndpointForSlot(slot, defaultIndex), &device)))
             continue;
         LPWSTR id = nullptr;
         if (SUCCEEDED(device->GetId(&id))) {
-            std::wcsncpy(g_audioDeviceIds[index].data(), id, g_audioDeviceIds[index].size() - 1);
+            std::wcsncpy(g_audioDeviceIds[slot].data(), id, g_audioDeviceIds[slot].size() - 1);
             CoTaskMemFree(id);
         }
         IPropertyStore *properties = nullptr;
         if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &properties))) {
             PROPVARIANT name{};
             if (SUCCEEDED(properties->GetValue(PKEY_Device_FriendlyName, &name)) && name.vt == VT_LPWSTR)
-                std::wcstombs(g_audioDeviceNames[index + 1].data(), name.pwszVal, 64);
+                std::wcstombs(g_audioDeviceNames[slot + 1].data(), name.pwszVal, 64);
             PropVariantClear(&name);
             properties->Release();
         }

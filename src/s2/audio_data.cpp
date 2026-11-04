@@ -32,6 +32,7 @@
 #include "s2/audio_output_settings.hpp"
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
+#include "platform/default_audio_endpoint.hpp"
 #endif
 
 namespace shenmue::s2 {
@@ -121,11 +122,12 @@ void EnumerateAudioOutputs() {
             count = 12;
         outputDeviceCount = count ? count + 1 : 0;
         std::strcpy(outputDevices[0].name, "UIOTGLOFF0"); // @text EN: "Off" | JA: "いいえ"
-        for (UINT index = 0; index < count; ++index) {
-            AudioOutputDevice &destination = outputDevices[index + 1];
+        const UINT defaultIndex = ::shenmue::platform::DefaultRenderEndpointIndex(enumerator, devices, count);
+        for (UINT slot = 0; slot < count; ++slot) {
+            AudioOutputDevice &destination = outputDevices[slot + 1];
             destination = {};
             IMMDevice *device = nullptr;
-            if (FAILED(devices->Item(index, &device)))
+            if (FAILED(devices->Item(::shenmue::platform::EndpointForSlot(slot, defaultIndex), &device)))
                 continue;
             LPWSTR id = nullptr;
             if (SUCCEEDED(device->GetId(&id))) {

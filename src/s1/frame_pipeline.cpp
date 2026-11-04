@@ -1,8 +1,9 @@
 #include "shenmue.h"
-#if defined(SHENMUE_STEAM)
+#include "s1/enhancements/qte_select.hpp"
 #if SHENMUE_ENHANCEMENT_STEAM_S1_MP && SHENMUE_IS_S1 && SHENMUE_IS_PC
 #include "s1/enhancements/s1_multiplayer.hpp"
 #endif
+#if defined(SHENMUE_STEAM)
 #include "d3t/steam.hpp"
 #endif
 
@@ -787,6 +788,9 @@ void PresentLatestFrame() {
         b60fps = 0;
     }
 #if defined(_WIN32)
+#if SHENMUE_ENHANCEMENT_S1_QTE_SELECT && SHENMUE_IS_S1 && SHENMUE_IS_PC
+    enhancements::QteSelect_Render();
+#endif
     d3t_PresentFrame(renderMode);
     g_hasPresentedGameFrame = true;
     if (g_shouldResetWindow) {
