@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace shenmue::archive_data {
 
@@ -42,5 +44,8 @@ bool ArchiveData_IsPackedFile(const char *path);
 void ArchiveData_GetSourceDesc(const char *path, ArchiveSourceDesc &source);
 bool ArchiveData_GetSourceBackingPath(const ArchiveSourceDesc &source, char *path, std::size_t capacity);
 bool ArchiveData_Read(const char *path, std::uint64_t offset, void *destination, std::uint64_t size);
+// Cleaned (lower-case) names of the archive files whose path starts with prefix; the names come
+// from the filename database, so only files present in the loaded archives are listed.
+std::vector<std::string> ArchiveData_ListNamedPaths(const char *prefix);
 
 } // namespace shenmue::archive_data

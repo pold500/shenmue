@@ -662,4 +662,17 @@ bool ArchiveData_Read(const char *path, std::uint64_t offset, void *destination,
     return input.gcount() == static_cast<std::streamsize>(size);
 }
 
+std::vector<std::string> ArchiveData_ListNamedPaths(const char *prefix) {
+    ensureIndex();
+    const std::string wanted = cleanFilePath(prefix ? prefix : "");
+    std::vector<std::string> paths;
+    std::scoped_lock lock(g_indexMutex);
+    for (const auto &[name, entry] : g_namedEntries) {
+        if (name.compare(0, wanted.size(), wanted) == 0)
+            paths.push_back(name);
+    }
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
 } // namespace shenmue::archive_data

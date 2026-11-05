@@ -422,9 +422,11 @@ set_source_files_properties(src/third_party/stb_image.cpp PROPERTIES
 )
 target_compile_features(shenmue1_game PUBLIC cxx_std_20)
 target_include_directories(shenmue1_game PUBLIC src)
-target_sources(shenmue1_game PRIVATE src/s1/enhancements/enemy_gauge.cpp src/s1/enhancements/qte_select.cpp)
+target_sources(shenmue1_game PRIVATE src/s1/enhancements/enemy_gauge.cpp src/s1/enhancements/qte_select.cpp src/s1/enhancements/notebook_editor.cpp
+  src/s1/enhancements/location_picker.cpp src/s1/enhancements/world_controls.cpp src/s1/enhancements/autotest.cpp)
 # The QTE panel's labels are UTF-8 (Cyrillic) string literals.
-set_source_files_properties(src/s1/enhancements/qte_select.cpp PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+set_source_files_properties(src/s1/enhancements/qte_select.cpp src/s1/enhancements/notebook_editor.cpp
+  src/s1/enhancements/location_picker.cpp src/s1/enhancements/world_controls.cpp PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 if(SHENMUE_ENHANCEMENT_STEAM_S1_MP)
   if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Steam phone co-op requires Windows x64")

@@ -553,6 +553,9 @@ void HLib_mainModule(HLib::TaskData *) {
     S1Multiplayer_BeginInputFrame();
 #endif
     UpdateInputsFromInputDevices();
+#if SHENMUE_ENHANCEMENT_S1_QTE_SELECT && SHENMUE_IS_S1 && SHENMUE_IS_PC && defined(_WIN32)
+    enhancements::QteSelect_AfterInputUpdate();
+#endif
 #if SHENMUE_ENHANCEMENT_STEAM_S1_MP && SHENMUE_IS_S1 && SHENMUE_IS_PC
     S1Multiplayer_Update();
 #endif
