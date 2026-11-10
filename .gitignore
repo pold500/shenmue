@@ -10,6 +10,7 @@
 /build/qa/tools/scn/
 /build/qa/tools/subs/
 /build/qa/tools/out/
+/build/qa/tools/work/
 /out/
 /.cache/
 /.vs/

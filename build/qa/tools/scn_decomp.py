@@ -235,12 +235,20 @@ def layout(acc, end, name, key, absorb_limit=16):
         info = acc[s]
         ew = max(info["w"]) if info["w"] else 4
         j = i + 1
+        via = info.get("via", 0)
+        if via > max(info["w"] or {0}):
+            while j < len(starts) and starts[j] < s + via:
+                j += 1
+            widths = set(info["w"])
+            for k in range(i + 1, j):
+                widths |= acc[starts[k]]["w"]
+            ew = min(widths) if widths else 4
         if info["ad"] or info["idx"]:
-            while j < len(starts) and starts[j] - s < absorb_limit and not acc[starts[j]]["ad"] and acc[starts[j]]["w"] <= {4}:
+            while j < len(starts) and starts[j] - s < absorb_limit and not acc[starts[j]]["ad"] and acc[starts[j]]["w"] <= {4} and ew == 4:
                 j += 1
         nxt = starts[j] if j < len(starts) else end
         size = (nxt - s) if nxt is not None else None
-        array = (info["ad"] or info["idx"] or j > i + 1) and (size is None or (size > ew and size % ew == 0))
+        array = (info["ad"] or info["idx"] or j > i + 1 or via > ew) and (size is None or (size > ew and size % ew == 0))
         if size is not None and size < ew:
             ew = 2 if size >= 2 else 1
         out.append(Var(name(s), s, size, ew, bool(array), key(s)))
@@ -370,7 +378,7 @@ class Scene:
     # ------------------------------------------------------------ globals and data
 
     def global_access(self, cat, off, w, mode):
-        d = self.globals[cat].setdefault(off, {"w": set(), "ad": False, "idx": False})
+        d = self.globals[cat].setdefault(off, {"w": set(), "ad": False, "idx": False, "via": 0})
         if mode == "ad":
             d["ad"] = True
         elif mode == "idx":
@@ -641,7 +649,7 @@ class Func:
             self.args_used = max(self.args_used, (off - 8) // 4 + 1)
             if (off - 8) % 4 or w != 4 and mode != "ad":
                 pass
-        d = self.frame_acc.setdefault(off, {"w": set(), "ad": False, "idx": False})
+        d = self.frame_acc.setdefault(off, {"w": set(), "ad": False, "idx": False, "via": 0})
         if mode == "ad":
             d["ad"] = True
         elif mode == "idx":
@@ -650,6 +658,16 @@ class Func:
             d["w"].add(w)
         if 0 <= off < 8:
             self.note("frame_header_access", self.addr)
+
+    def access_via(self, base, extent):
+        """base[0..extent) was reached through the base address (field or element access)"""
+        if base[0] == "L":
+            d = self.frame_acc.setdefault(base[1], {"w": set(), "ad": False, "idx": False, "via": 0})
+        elif base[0] in ("G4", "G8"):
+            d = self.sc.globals[base[0]].setdefault(base[1], {"w": set(), "ad": False, "idx": False, "via": 0})
+        else:
+            return
+        d["via"] = max(d["via"], extent)
 
     def access(self, ref, w, mode):
         if ref[0] == "L":
@@ -890,6 +908,7 @@ class Func:
     def deref(self, p, w, mode):
         if p.op == "ad":
             self.access(p.v, w, mode)
+            self.access_via(p.v, w)
             return N("ld", v=p.v, w=w)
         base = self.base_ref(p)
         if base is not None:
@@ -898,6 +917,8 @@ class Func:
                 delta = off.v if p.v == 18 else -off.v
                 ref = (base[0], base[1] + delta)
                 self.access(ref, w, mode)
+                if delta >= 0:
+                    self.access_via(base, delta + w)
                 return N("ld", v=ref, w=w)
             self.access(base, w, "idx")
         if p.op not in ("ad", "dat"):
@@ -1219,6 +1240,10 @@ class Struct:
             if b.addr != skip_head:
                 latch = max((p.idx for p in b.preds if i <= p.idx < hi and p.addr >= b.addr), default=None)
                 if latch is not None:
+                    if b.term == "jz" and b.t > R[latch].addr:
+                        ti = self.idx(b.t)
+                        if ti is not None and latch < ti <= hi:
+                            latch = ti - 1
                     exit_ = R[latch + 1].addr if latch + 1 < hi else follow
                     body = self.region(i, latch + 1, loops + [(b.addr, exit_)], b.addr, b.addr)
                     out.extend(self.mkloop(body))
@@ -1246,7 +1271,8 @@ class Struct:
                 fb = self.by_addr.get(b.fall)
                 fall_seq = [] if (not at_end and b.fall == nxt) else self.jump(b.fall, loops, here_follow, b)
                 inside = ti is not None and i < ti <= hi
-                structured = tb is not None and not tb.retonly and t > b.addr and (inside or t == follow)
+                to_exit = bool(loops) and t == loops[-1][1]
+                structured = tb is not None and not tb.retonly and t > b.addr and (inside or t == follow) and not to_exit
                 if t == b.fall:
                     if not pure(cond):
                         out.append(("s", cond))
