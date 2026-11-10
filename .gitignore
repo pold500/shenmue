@@ -1,4 +1,15 @@
 /build*/
+# Script-analysis tools live in build/qa/tools; game data extracted there stays local.
+!/build/
+/build/*
+!/build/qa/
+/build/qa/*
+!/build/qa/tools/
+/build/qa/tools/.venv/
+/build/qa/tools/__pycache__/
+/build/qa/tools/scn/
+/build/qa/tools/subs/
+/build/qa/tools/out/
 /out/
 /.cache/
 /.vs/
