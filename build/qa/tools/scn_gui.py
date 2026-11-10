@@ -28,13 +28,18 @@ DARK = {"bg": "#16191f", "fg": "#d8dee9", "sel": "#2e3a50", "comment": "#7f8a9a"
 
 
 class App:
-    def __init__(self, root):
+    def __init__(self, root, parent=None, out_var=None, on_edit=None, on_finished=None, is_active=None):
+        """parent: frame to build into (a tab of scn_studio); without it the app owns the window."""
         self.root = root
-        root.title("SCN decompiler")
-        root.geometry("1500x900")
+        self.box = parent or root
+        self.on_edit, self.on_finished = on_edit, on_finished
+        self.is_active = is_active or (lambda: True)
+        if parent is None:
+            root.title("SCN decompiler")
+            root.geometry("1500x900")
         self.settings = self.load_settings()
         self.scn_dir = tk.StringVar(value=self.settings.get("scn_dir", str(HERE / "scn")))
-        self.out_dir = tk.StringVar(value=self.settings.get("out_dir", str(HERE / "out" / "scn_c")))
+        self.out_dir = out_var or tk.StringVar(value=self.settings.get("out_dir", str(HERE / "out" / "scn_c")))
         self.scene_filter = tk.StringVar()
         self.func_filter = tk.StringVar()
         self.search = tk.StringVar()
@@ -55,7 +60,7 @@ class App:
         style = ttk.Style()
         if "vista" in style.theme_names():
             style.theme_use("vista")
-        top = ttk.Frame(self.root, padding=6)
+        top = ttk.Frame(self.box, padding=6)
         top.pack(fill="x")
         for row, (label, var, pick) in enumerate((("Scenes (.scn)", self.scn_dir, self.pick_scn), ("Output (.c)", self.out_dir, self.pick_out))):
             ttk.Label(top, text=label, width=14).grid(row=row, column=0, sticky="w")
@@ -72,8 +77,10 @@ class App:
         ttk.Button(bar, text="Report", command=self.show_report).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
         ttk.Button(bar, text="scn.h", command=self.show_header).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
         ttk.Button(bar, text="Open in VS Code", command=self.open_code).grid(row=1, column=2, padx=2, pady=2, sticky="ew")
+        if self.on_edit:
+            ttk.Button(bar, text="Edit in workspace →", command=self.edit).grid(row=0, column=3, rowspan=2, padx=(10, 2), sticky="ns")
 
-        main = ttk.PanedWindow(self.root, orient="horizontal")
+        main = ttk.PanedWindow(self.box, orient="horizontal")
         main.pack(fill="both", expand=True, padx=6)
         left = ttk.Frame(main)
         main.add(left, weight=0)
@@ -129,9 +136,9 @@ class App:
         self.text.bind("<Double-Button-1>", self.on_double)
         self.text.bind("<Key>", self.readonly_key)
         self.text.bind("<Configure>", lambda e: self.highlight_visible())
-        self.root.bind("<Control-f>", lambda e: (self.search_entry.focus_set(), self.search_entry.select_range(0, "end")))
-        self.root.bind("<F3>", lambda e: self.find_next())
-        self.root.bind("<Alt-Left>", lambda e: self.back())
+        self.root.bind("<Control-f>", lambda e: self.is_active() and (self.search_entry.focus_set(), self.search_entry.select_range(0, "end")), add="+")
+        self.root.bind("<F3>", lambda e: self.is_active() and self.find_next(), add="+")
+        self.root.bind("<Alt-Left>", lambda e: self.is_active() and self.back(), add="+")
 
         logbox = ttk.Frame(right)
         right.add(logbox, weight=1)
@@ -140,7 +147,7 @@ class App:
         self.log.configure(yscrollcommand=ls.set)
         ls.pack(side="right", fill="y")
         self.log.pack(fill="both", expand=True)
-        st = ttk.Frame(self.root, padding=(6, 2))
+        st = ttk.Frame(self.box, padding=(6, 2))
         st.pack(fill="x")
         self.progress = ttk.Progressbar(st, mode="indeterminate", length=160)
         self.progress.pack(side="right")
@@ -337,6 +344,13 @@ class App:
         self.highlight_visible()
         self.status.set("found at line %s" % pos.split(".")[0])
 
+    def edit(self):
+        name = self.current or self.selected_scene()
+        if not name:
+            messagebox.showinfo("Edit", "Select a scene first.")
+            return
+        self.on_edit(name)
+
     def show_report(self):
         p = Path(self.out_dir.get()) / "report.txt"
         self.history.append((self.current, int(self.text.index("@0,0").split(".")[0])))
@@ -414,6 +428,8 @@ class App:
                     self.log.insert("end", "[exit code %d]\n" % val)
                     self.log.see("end")
                     self.refresh_scenes()
+                    if self.on_finished:
+                        self.on_finished()
                     if self.reopen and val == 0:
                         self.open_scene(self.reopen)
                     elif val == 0 and not self.reopen:

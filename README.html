@@ -101,13 +101,14 @@ tr:last-child td { border-bottom: 0; }
   <header>
     <div class="eyebrow">build/qa/tools · branch feature/scene_decompiler</div>
     <h1>Shenmue Scene Decompiler</h1>
-    <p class="lead"><code>scn_decomp.py</code> turns Shenmue I scenario bytecode (<code>.scn</code>, SCN3) into plain C. <code>scn_gui.py</code> runs it and lets you browse the result. Both need only a uv-managed Python, with no extra packages.</p>
+    <p class="lead"><code>scn_decomp.py</code> turns Shenmue I scenario bytecode (<code>.scn</code>, SCN3) into plain C. <code>scn_compile.py</code> compiles edited C back to <code>.scn</code>. <code>scn_studio.py</code> puts both in one window: a Decompiler tab and a Compiler tab. Everything needs only a uv-managed Python, with no extra packages.</p>
   </header>
 
   <section>
     <h2>Where it is</h2>
     <div class="links">
-      <div class="link"><span>GUI</span><a href="https://github.com/pold500/shenmue/blob/feature/scene_decompiler/build/qa/tools/scn_gui.py">github.com/pold500/shenmue/…/scn_gui.py</a></div>
+      <div class="link"><span>GUI</span><a href="https://github.com/pold500/shenmue/blob/feature/scene_decompiler/build/qa/tools/scn_studio.py">github.com/pold500/shenmue/…/scn_studio.py</a></div>
+      <div class="link"><span>Compiler</span><a href="https://github.com/pold500/shenmue/blob/feature/scene_decompiler/build/qa/tools/scn_compile.py">github.com/pold500/shenmue/…/scn_compile.py</a></div>
       <div class="link"><span>Decompiler</span><a href="https://github.com/pold500/shenmue/blob/feature/scene_decompiler/build/qa/tools/scn_decomp.py">github.com/pold500/shenmue/…/scn_decomp.py</a></div>
       <div class="link"><span>In the repo</span><code>build/qa/tools/</code></div>
       <div class="link"><span>Output</span><code>build/qa/tools/out/scn_c/</code> (not tracked by git: it is derived from game data)</div>
@@ -118,8 +119,8 @@ tr:last-child td { border-bottom: 0; }
   <section>
     <h2>How to run</h2>
     <h3>GUI</h3>
-    <p>Double-click <code>scn_gui.cmd</code>, or run this from <code>build/qa/tools</code>:</p>
-    <div class="cmd"><pre id="cmd-gui">uv run --no-project --python-preference only-managed python scn_gui.py</pre><button type="button" data-copy="cmd-gui">Copy</button></div>
+    <p>Double-click <code>scn_studio.cmd</code>, or run this from <code>build/qa/tools</code>:</p>
+    <div class="cmd"><pre id="cmd-gui">uv run --no-project --python-preference only-managed python scn_studio.py</pre><button type="button" data-copy="cmd-gui">Copy</button></div>
     <h3>Command line</h3>
     <div class="cmd"><pre id="cmd-all"><span class="c"># every scene in scn/ → out/scn_c/, about 80 seconds</span>
 uv run --no-project --python-preference only-managed python scn_decomp.py all

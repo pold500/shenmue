@@ -32,13 +32,16 @@ def functions(text):
 
 
 class App:
-    def __init__(self, root):
+    def __init__(self, root, parent=None, dec_var=None):
+        """parent: frame to build into (a tab of scn_studio); dec_var: shared decompiled-folder variable."""
         self.root = root
-        root.title("SCN compiler")
-        root.geometry("1450x880")
+        self.box = parent or root
+        if parent is None:
+            root.title("SCN compiler")
+            root.geometry("1450x880")
         s = self.load_settings()
         self.src = tk.StringVar(value=s.get("src", str(HERE / "work")))
-        self.dec = tk.StringVar(value=s.get("dec", str(HERE / "out" / "scn_c")))
+        self.dec = dec_var or tk.StringVar(value=s.get("dec", str(HERE / "out" / "scn_c")))
         self.scn = tk.StringVar(value=s.get("scn", str(HERE / "scn")))
         self.out = tk.StringVar(value=s.get("out", str(HERE / "out" / "scn_build")))
         self.filter = tk.StringVar()
@@ -57,7 +60,7 @@ class App:
         st = ttk.Style()
         if "vista" in st.theme_names():
             st.theme_use("vista")
-        top = ttk.Frame(self.root, padding=6)
+        top = ttk.Frame(self.box, padding=6)
         top.pack(fill="x")
         rows = (("Workspace (.c)", self.src), ("Decompiled (.c)", self.dec), ("Original (.scn)", self.scn), ("Output (.scn)", self.out))
         for r, (label, var) in enumerate(rows):
@@ -79,7 +82,7 @@ class App:
             self.buttons.append(b)
         ttk.Checkbutton(bar, text="Recompile every function", variable=self.force).grid(row=3, column=0, columnspan=3, sticky="w")
 
-        main = ttk.PanedWindow(self.root, orient="horizontal")
+        main = ttk.PanedWindow(self.box, orient="horizontal")
         main.pack(fill="both", expand=True, padx=6)
         left = ttk.Frame(main)
         main.add(left, weight=0)
@@ -127,7 +130,7 @@ class App:
         self.log.pack(fill="both", expand=True)
         self.log.tag_configure("err", foreground=COLORS["err"], underline=True)
         self.log.bind("<Double-Button-1>", self.on_double)
-        sb = ttk.Frame(self.root, padding=(6, 2))
+        sb = ttk.Frame(self.box, padding=(6, 2))
         sb.pack(fill="x")
         self.progress = ttk.Progressbar(sb, mode="indeterminate", length=160)
         self.progress.pack(side="right")
@@ -288,6 +291,22 @@ class App:
         self.log.insert("end", "copied %s.c and %s.json to %s\n" % (name, name, src))
         self.refresh()
         self.select_scene()
+
+    def edit_scene(self, name):
+        """select a scene; copy it from the decompiled folder first if it is not in the workspace yet"""
+        self.filter.set("")
+        self.refresh()
+        if name not in self.items:
+            messagebox.showerror("Workspace", "%s.c is not in the decompiled folder %s" % (name, self.dec.get()))
+            return
+        i = self.items.index(name)
+        self.scenes.selection_clear(0, "end")
+        self.scenes.selection_set(i)
+        self.scenes.see(i)
+        if not (Path(self.src.get()) / (name + ".c")).exists():
+            self.add_to_workspace()
+        else:
+            self.select_scene()
 
     def need_scene(self):
         name = self.selected()
