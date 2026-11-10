@@ -78,6 +78,7 @@ option(SHENMUE_ENHANCEMENT_S1_CASSETTES_ANYWHERE "Keep menu cassette playback ac
 option(SHENMUE_ENHANCEMENT_S1_QTE_SELECT "Shenmue I ImGui debug panel: start at a story QTE scene, override the weather, skip splash screens" OFF)
 option(SHENMUE_RT_ARCADE "Run the original arcade cores on Shenmue I cabinet screens in realtime" OFF)
 option(SHENMUE_LOAD_HANGON_DLL "Resolve the original Hang-On DLL explicitly instead of native imports" OFF)
+option(SHENMUE_LOCAL_SAVES "Keep ASI saves in devsaves next to the game exe instead of Steam Cloud" OFF)
 
 
 add_subdirectory(libs/ShenmueDK)
@@ -1482,7 +1483,8 @@ END
     add_library(shenmue${title}_asi MODULE src/d3t/steam_entry.cpp src/d3t/steam.cpp src/d3t/steam_storage.cpp
       src/common/archive_data.cpp "${steam_names_resource}")
     target_compile_features(shenmue${title}_asi PRIVATE cxx_std_20)
-    target_compile_definitions(shenmue${title}_asi PRIVATE SHENMUE_STEAM=1 SHENMUE_TARGET_S${title}_PC=1)
+    target_compile_definitions(shenmue${title}_asi PRIVATE SHENMUE_STEAM=1 SHENMUE_TARGET_S${title}_PC=1
+      SHENMUE_LOCAL_SAVES=$<BOOL:${SHENMUE_LOCAL_SAVES}>)
     target_include_directories(shenmue${title}_asi PRIVATE src)
     target_link_libraries(shenmue${title}_asi PRIVATE shenmue${title}_steam_game)
     if(title EQUAL 1)

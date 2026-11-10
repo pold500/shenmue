@@ -5,8 +5,9 @@ $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
 $BuildDir  = 'build/windows-asi'
-# Steam install of Shenmue I & II. The built ASIs are copied here after a successful build.
-$GameDir   = 'C:\Program Files (x86)\Steam\steamapps\common\SMLaunch'
+# Patched game folder made by setup-game.ps1. The built ASIs are copied here after a
+# successful build. The Steam install stays clean.
+$GameDir   = 'C:\opt\shenmue-game'
 $Generator = 'Visual Studio 18 2026'
 
 # Use VCPKG_ROOT if it is set, otherwise the local install.
@@ -48,6 +49,7 @@ Invoke-Step cmake @(
     '-DSHENMUE_STEAM=ON',
     '-DSHENMUE_RT_ARCADE=ON',
     '-DSHENMUE_LOAD_HANGON_DLL=ON',
+    '-DSHENMUE_LOCAL_SAVES=ON',
     '-DSHENMUE_ENHANCEMENT_S1_QTE_SELECT=ON'
 )
 
@@ -60,16 +62,15 @@ Invoke-Step cmake @(
 
 # Deploy: copy the ASIs next to the game exes (the ASI loader there is dxgi.dll).
 # Symlinks would need admin rights or Developer Mode, so plain copies are used.
-if (Test-Path $GameDir) {
-    foreach ($pair in @(@('sm1', 'shenmue1e.asi', 'Shenmue'), @('sm2', 'shenmue2e.asi', 'Shenmue2'))) {
-        $dir, $asi, $process = $pair
-        if (Get-Process $process -ErrorAction SilentlyContinue) {
-            Write-Warning "$process.exe is running; $asi was not deployed. Close the game and rerun."
-            continue
-        }
-        Copy-Item (Join-Path $BuildDir "Release/$asi") (Join-Path $GameDir $dir) -Force
-        Write-Host "Deployed $asi -> $(Join-Path $GameDir $dir)"
+& (Join-Path $PSScriptRoot 'setup-game.ps1') -GameDir $GameDir
+foreach ($pair in @(@('sm1', 'shenmue1e.asi', 'Shenmue'), @('sm2', 'shenmue2e.asi', 'Shenmue2'))) {
+    $dir, $asi, $process = $pair
+    $target = Join-Path $GameDir $dir
+    # The clean Steam game may keep running: only this folder's exe locks the ASI.
+    if (Get-Process $process -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" }) {
+        Write-Warning "$process.exe is running; $asi was not deployed. Close the game and rerun."
+        continue
     }
-} else {
-    Write-Warning "Game folder not found, skipping deploy: $GameDir"
+    Copy-Item (Join-Path $BuildDir "Release/$asi") $target -Force
+    Write-Host "Deployed $asi -> $target"
 }

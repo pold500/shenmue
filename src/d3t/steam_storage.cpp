@@ -5,6 +5,9 @@
 #include <mutex>
 #include <string>
 #include <windows.h>
+#if SHENMUE_LOCAL_SAVES
+#include <fstream>
+#endif
 
 namespace shenmue::d3t {
 void **OriginalSteamContext();
@@ -35,12 +38,47 @@ StorageRequest request{};
 bool pending;
 bool accepting = true;
 
+#if SHENMUE_LOCAL_SAVES
+constexpr const char *LocalSaveDirectory = ".\\devsaves";
+// Completion values of the original storage calls, also used by the non-Steam save paths.
+constexpr std::int32_t ReadStage = 2;
+constexpr std::int32_t WriteStage = 3;
+constexpr std::int32_t ReadFailed = -4;
+constexpr std::int32_t WriteFailed = -9;
+
+std::int32_t ReadLocalFile(const StorageRequest &next) {
+    std::ifstream file(next.path.data(), std::ios::binary);
+    file.seekg(next.offset);
+    file.read(static_cast<char *>(next.buffer), next.size);
+    return file && file.gcount() == next.size ? 0 : ReadFailed;
+}
+
+std::int32_t WriteLocalFile(const StorageRequest &next) {
+    std::error_code error;
+    std::filesystem::create_directories(LocalSaveDirectory, error);
+    if (error)
+        return WriteFailed;
+    // A crash during the write must not destroy the previous save.
+    const std::string temporary = std::string{next.path.data()} + ".tmp";
+    {
+        std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
+        file.write(static_cast<const char *>(next.buffer), next.size);
+        if (!file.flush())
+            return WriteFailed;
+    }
+    std::filesystem::rename(temporary, next.path.data(), error);
+    return error ? WriteFailed : 0;
+}
+#endif
+
 std::string StoragePath(const char *name) {
     RequireSteamInitialized();
     const std::string filename = std::filesystem::path(name).filename().string();
     if (filename.empty() || filename == "." || filename == ".." || filename.size() > 240)
         return {};
-#if SHENMUE_IS_S1
+#if SHENMUE_LOCAL_SAVES
+    return std::string{LocalSaveDirectory} + "\\" + filename;
+#elif SHENMUE_IS_S1
     return ".\\sm1saves\\" + filename;
 #else
     std::array<char, 260> path{};
@@ -109,6 +147,9 @@ void RunSteamCallbacks() {
         }
     }
     if (start) {
+#if SHENMUE_LOCAL_SAVES
+        CompleteStorage(next.write ? WriteStage : ReadStage, next.write ? WriteLocalFile(next) : ReadLocalFile(next), nullptr);
+#else
         using Completion = std::int64_t (*)(std::int32_t, std::int32_t, void *);
         if (next.write) {
             using WriteFunction = std::int64_t (*)(void *, const char *, std::uint32_t, const void *, Completion);
@@ -119,6 +160,7 @@ void RunSteamCallbacks() {
             reinterpret_cast<ReadFunction>(OriginalExecutableFunction(ExeInfo.readStorage))(
                 nullptr, next.path.data(), next.offset, next.size, next.buffer, CompleteStorage);
         }
+#endif
     }
     RunOriginalSteamCallbacks();
 }
@@ -145,35 +187,57 @@ bool SteamFileExists(const char *name) {
     const std::string path = StoragePath(name);
     if (path.empty())
         return false;
+#if SHENMUE_LOCAL_SAVES
+    std::error_code error;
+    return std::filesystem::is_regular_file(path, error);
+#else
     void *const storage = OriginalSteamContext()[9];
     return reinterpret_cast<bool (*)(void *, const char *)>((*static_cast<void ***>(storage))[13])(storage, path.c_str());
+#endif
 }
 
 std::int32_t GetSteamFileSize(const char *name) {
     const std::string path = StoragePath(name);
     if (path.empty())
         return -1;
+#if SHENMUE_LOCAL_SAVES
+    std::error_code error;
+    const std::uintmax_t size = std::filesystem::file_size(path, error);
+    return error ? -1 : static_cast<std::int32_t>(size);
+#else
     void *const storage = OriginalSteamContext()[9];
     void **const vtable = *static_cast<void ***>(storage);
     if (!reinterpret_cast<bool (*)(void *, const char *)>(vtable[13])(storage, path.c_str()))
         return -1;
     return reinterpret_cast<std::int32_t (*)(void *, const char *)>(vtable[15])(storage, path.c_str());
+#endif
 }
 
 bool DeleteSteamFile(const char *name) {
     const std::string path = StoragePath(name);
     if (path.empty())
         return false;
+#if SHENMUE_LOCAL_SAVES
+    std::error_code error;
+    return std::filesystem::remove(path, error);
+#else
     void *const storage = OriginalSteamContext()[9];
     return reinterpret_cast<bool (*)(void *, const char *)>((*static_cast<void ***>(storage))[6])(storage, path.c_str());
+#endif
 }
 
 std::uint64_t GetSteamStorageAvailableBytes() {
+#if SHENMUE_LOCAL_SAVES
+    std::error_code error;
+    const std::filesystem::space_info space = std::filesystem::space(".", error);
+    return error ? 0 : space.available;
+#else
     void *const storage = OriginalSteamContext()[9];
     std::uint64_t total{}, available{};
     const bool success = reinterpret_cast<bool (*)(void *, std::uint64_t *, std::uint64_t *)>(
         (*static_cast<void ***>(storage))[20])(storage, &total, &available);
     return success ? available : 0;
+#endif
 }
 
 bool ReadSteamFileAsync(const char *name, void *destination, std::uint32_t offset, std::uint32_t size, SteamStorageCompletion completion, void *user) {

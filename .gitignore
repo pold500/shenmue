@@ -26,3 +26,4 @@ compile_commands.json
 /nul
 /decomp/*.i64
 /src/s1/temp/
+/.claude/worktrees/
