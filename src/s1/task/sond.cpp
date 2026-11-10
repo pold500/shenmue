@@ -3003,7 +3003,9 @@ void ProcessAicaEventStreams() {
         auto *control = pointerAt(28);
         bool ownerFinished = false;
         while (!ownerFinished) {
-            if (stream == kAicaEndStream.data()) {
+            // A finished pattern (0xff) leaves stream null: advance the control list instead of
+            // treating null as an out-of-bank pointer, or every track stops after its first pattern.
+            if (!stream || stream == kAicaEndStream.data()) {
                 stream = nullptr;
             } else if (!AicaBankPointerValid(bankData, bankSize, stream, 1)) {
                 clearOwner();
